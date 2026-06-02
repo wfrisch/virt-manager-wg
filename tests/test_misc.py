@@ -90,6 +90,28 @@ def test_misc_guest_osinfo_metadata():
     assert g.osinfo.name == "generic"
 
 
+def test_misc_guest_virtmanager_group_metadata():
+    """
+    Round-trip the virt-manager:group element under <metadata>
+    """
+    # pylint: disable=protected-access
+    g = virtinst.Guest(utils.URIs.open_testdefault_cached())
+    assert g._metadata.virtmanager.group is None
+
+    g._metadata.virtmanager.group = "Debian"
+    xml = g.get_xml()
+    assert "<virt-manager:group>Debian</virt-manager:group>" in xml
+    assert 'xmlns:virt-manager="http://virt-manager.org/xmlns/virt-manager/1.0"' in xml
+
+    # Parse it back
+    g2 = virtinst.Guest(utils.URIs.open_testdefault_cached(), parsexml=xml)
+    assert g2._metadata.virtmanager.group == "Debian"
+
+    # Clearing removes the element
+    g2._metadata.virtmanager.group = None
+    assert "<virt-manager:group" not in g2.get_xml()
+
+
 def test_misc_nonpredicatble_generate():
     """
     Bypass our testsuite 'predicatable' handling to test actual random output

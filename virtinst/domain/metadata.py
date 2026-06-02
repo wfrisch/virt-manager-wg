@@ -7,12 +7,19 @@ from ..xmlbuilder import XMLBuilder, XMLChildProperty, XMLProperty
 
 
 XMLBuilder.register_namespace("libosinfo", "http://libosinfo.org/xmlns/libvirt/domain/1.0")
+XMLBuilder.register_namespace("virt-manager", "http://virt-manager.org/xmlns/virt-manager/1.0")
 
 
 class _XMLNSLibosinfo(XMLBuilder):
     XML_NAME = "libosinfo:libosinfo"
 
     os_id = XMLProperty("./libosinfo:os/@id")
+
+
+class _XMLNSVirtManager(XMLBuilder):
+    XML_NAME = "virt-manager:container"
+
+    group = XMLProperty("./virt-manager:group")
 
 
 class DomainMetadata(XMLBuilder):
@@ -23,3 +30,4 @@ class DomainMetadata(XMLBuilder):
     XML_NAME = "metadata"
 
     libosinfo = XMLChildProperty(_XMLNSLibosinfo, is_single=True)
+    virtmanager = XMLChildProperty(_XMLNSVirtManager, is_single=True)

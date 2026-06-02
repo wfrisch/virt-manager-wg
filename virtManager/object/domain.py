@@ -16,6 +16,7 @@ from virtinst import DeviceDisk
 from virtinst import DomainSnapshot
 from virtinst import Guest
 from virtinst import log
+from virtinst import xmlutil
 
 from .libvirtobject import vmmLibvirtObject
 from ..baseclass import vmmGObject
@@ -700,6 +701,7 @@ class vmmDomain(vmmLibvirtObject):
         loader=_SENTINEL,
         nvram=_SENTINEL,
         firmware=_SENTINEL,
+        group=_SENTINEL,
     ):
         guest = self._make_xmlobj_to_define()
 
@@ -712,6 +714,9 @@ class vmmDomain(vmmLibvirtObject):
             guest.description = description or None
         if title != _SENTINEL:
             guest.title = title or None
+        if group != _SENTINEL:
+            # pylint: disable=protected-access
+            guest._metadata.virtmanager.group = group or None
 
         if loader != _SENTINEL and firmware != _SENTINEL:
             guest.os.firmware = firmware
@@ -1104,6 +1109,7 @@ class vmmDomain(vmmLibvirtObject):
         maxmem=_SENTINEL,
         description=_SENTINEL,
         title=_SENTINEL,
+        group=_SENTINEL,
         device=_SENTINEL,
     ):
         if not self.is_active():
@@ -1120,6 +1126,16 @@ class vmmDomain(vmmLibvirtObject):
         def _hotplug_metadata(val, mtype):
             flags = libvirt.VIR_DOMAIN_AFFECT_LIVE | libvirt.VIR_DOMAIN_AFFECT_CONFIG
             self._backend.setMetadata(mtype, val, None, None, flags)
+
+        def _hotplug_group(val):
+            flags = libvirt.VIR_DOMAIN_AFFECT_LIVE | libvirt.VIR_DOMAIN_AFFECT_CONFIG
+            key = "virt-manager"
+            uri = "http://virt-manager.org/xmlns/virt-manager/1.0"
+            if val:
+                xml = "<container><group>%s</group></container>" % xmlutil.xml_escape(val)
+            else:
+                xml = None
+            self._backend.setMetadata(libvirt.VIR_DOMAIN_METADATA_ELEMENT, xml, key, uri, flags)
 
         if memory != _SENTINEL:
             log.debug(
@@ -1139,6 +1155,8 @@ class vmmDomain(vmmLibvirtObject):
             _hotplug_metadata(description, libvirt.VIR_DOMAIN_METADATA_DESCRIPTION)
         if title != _SENTINEL:
             _hotplug_metadata(title, libvirt.VIR_DOMAIN_METADATA_TITLE)
+        if group != _SENTINEL:
+            _hotplug_group(group)
 
         if device != _SENTINEL:
             self._update_device(device)
@@ -1369,6 +1387,23 @@ class vmmDomain(vmmLibvirtObject):
 
     def get_description(self):
         return self.get_xmlobj().description
+
+    def get_group(self):
+        # pylint: disable=protected-access
+        return self.get_xmlobj()._metadata.virtmanager.group or ""
+
+    def set_group(self, group):
+        """
+        Convenience helper used by the manager UI (drag-and-drop, menus).
+        Persists the group via define_overview and, for running VMs, mirrors
+        the change to the live domain via hotplug().
+        """
+        group = group or ""
+        if self.get_group() == group:
+            return
+        self.define_overview(group=group)
+        if self.is_active():
+            self.hotplug(group=group)
 
     def get_boot_order(self):
         return self.xmlobj.get_boot_order()
